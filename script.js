@@ -1,7 +1,7 @@
 const TDX_FIDS_TPE_URL = "/api/tdx/fids/tpe";
 const FR24_LIVE_URL = "/api/fr24/starlux-live";
 const FR24_SUMMARY_URL = "/api/fr24/flight-summary";
-const CACHE_KEY = "starlux-tdx-fids-tpe-v9-cross-day-arrivals";
+const CACHE_KEY = "starlux-tdx-fids-tpe-v10-cross-day-estimates";
 const FR24_CACHE_KEY = "starlux-fr24-live-v2-cross-day-arrivals";
 const FR24_SUMMARY_CACHE_KEY = "starlux-fr24-summary-v1";
 const CACHE_MAX_AGE = 15 * 60 * 1000;
@@ -556,10 +556,9 @@ function buildNextDayPreviewFlights(sourceFlights) {
     .map((flight) => ({
       ...flight,
       targetDate: addDays(flight.targetDate, 1),
-      estimatedTime: flight.scheduledTime,
-      targetTime: flight.scheduledTime,
+      estimatedTime: flight.estimatedTime || flight.scheduledTime,
+      targetTime: flight.estimatedTime || flight.scheduledTime,
       rawStatus: "隔日預告",
-      status: "準時",
       sourceUpdatedAt: new Date().toISOString(),
       nextDayPreview: true,
     }))
