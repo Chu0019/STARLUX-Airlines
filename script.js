@@ -650,27 +650,27 @@ function render() {
 
       return `
         <div class="flight-row ${isNext ? "is-next" : ""}" role="row">
-          <span class="flight-code arrival-flight" role="cell">
+          <span class="flight-code arrival-flight ${flight.type === "抵達" ? "" : "is-empty"}" data-label="ARR" role="cell">
             ${flight.type === "抵達" ? flight.flight : ""}
           </span>
-          <span class="flight-code departure-flight" role="cell">
+          <span class="flight-code departure-flight ${flight.type === "起飛" ? "" : "is-empty"}" data-label="DEP" role="cell">
             ${flight.type === "起飛" ? flight.flight : ""}
           </span>
-          <span class="aircraft" role="cell">${aircraft}</span>
-          <span class="city" role="cell">${flight.city}</span>
-          <span class="gate" role="cell">${flight.gate || "--"}</span>
-          <span role="cell">
+          <span class="aircraft" data-label="TYPE" role="cell">${aircraft}</span>
+          <span class="city" data-label="IATA" role="cell">${flight.city}</span>
+          <span class="gate" data-label="BAY" role="cell">${flight.gate || "--"}</span>
+          <span class="schedule-time" data-label="STA" role="cell">
             ${scheduledDisplayTime}
             ${flight.type === "起飛" && flight.timeSource === "FR24 ETA" ? `<small class="time-source">ETA</small>` : ""}
           </span>
-          <span role="cell">
+          <span class="estimate-time" data-label="STD" role="cell">
             ${estimatedDisplayTime}
             ${flight.type === "抵達" && flight.timeSource === "FR24 ETA" ? `<small class="time-source">ETA</small>` : ""}
           </span>
-          <span class="minutes ${flight.minutes <= 0 ? "arrived" : ""}" role="cell">
+          <span class="minutes ${flight.minutes <= 0 ? "arrived" : ""}" data-label="倒數" role="cell">
             ${flight.fromFr24Only ? "追蹤中" : countdownText}
           </span>
-          <span role="cell">
+          <span class="status-cell" data-label="狀態" role="cell">
             <span class="status ${getStatusClass(flight.status)}">
               ${flight.status}${trackedFlight ? `<small title="${trackingTitle}">FR24</small>` : ""}
             </span>

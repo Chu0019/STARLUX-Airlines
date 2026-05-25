@@ -319,18 +319,105 @@ h1 {
   color: var(--green);
 }
 
-@media (max-width: 920px) {
+@media (max-width: 1180px) {
+  .board {
+    width: min(100vw - 16px, 1120px);
+    margin: 8px auto;
+  }
+
+  .table-head,
+  .flight-row {
+    grid-template-columns: 0.9fr 0.9fr 0.72fr 1fr 0.68fr 0.78fr 0.78fr 0.82fr 0.82fr;
+  }
+
+  .table-head,
+  .flight-row {
+    padding-inline: 14px;
+  }
+
+  .table-head span,
+  .flight-row span {
+    padding-right: 8px;
+  }
+
+  .flight-row {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 760px) {
   body {
-    overflow-x: auto;
+    overflow-x: hidden;
   }
 
   .board {
-    width: 980px;
-    min-height: calc(100vh - 24px);
-    margin: 12px;
+    width: calc(100vw - 16px);
+    min-height: calc(100vh - 16px);
+    margin: 8px auto;
+    gap: 8px;
   }
 
-  .topbar {
-    padding: 18px;
+  .summary {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .summary > div {
+    min-height: 50px;
+    padding: 8px 12px;
+  }
+
+  .summary span {
+    font-size: 0.9rem;
+  }
+
+  .summary strong {
+    font-size: 1.45rem;
+  }
+
+  .flight-panel {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-head,
+  .flight-row {
+    display: grid;
+    grid-template-columns: 0.8fr 0.8fr 0.66fr 1fr 0.58fr 0.74fr 0.74fr 0.82fr 0.74fr;
+    min-width: 860px;
+    padding-inline: 10px;
+  }
+
+  .table-head {
+    min-height: 42px;
+    font-size: 0.8rem;
+  }
+
+  .flight-row {
+    min-height: 52px;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .board {
+    width: calc(100vw - 12px);
+    margin: 6px auto;
+  }
+
+  .table-head,
+  .flight-row {
+    min-width: 820px;
+  }
+
+  .summary span {
+    font-size: 0.82rem;
+  }
+
+  .summary strong {
+    font-size: 1.28rem;
   }
 }
