@@ -47,8 +47,12 @@ function getFr24Headers() {
 }
 
 async function getTdxAccessToken() {
+  if (TDX_API_TOKEN) {
+    return TDX_API_TOKEN;
+  }
+
   if (!TDX_CLIENT_ID || !TDX_CLIENT_SECRET) {
-    return TDX_API_TOKEN || "";
+    return "";
   }
 
   if (apiCache.tdxAccessToken && Date.now() < apiCache.tdxAccessToken.expiresAt) {

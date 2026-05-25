@@ -87,12 +87,17 @@ function getFr24Headers() {
 
 async function getTdxAccessToken() {
   const staticToken = getTdxToken();
+
+  if (staticToken) {
+    return staticToken;
+  }
+
   const clientId = getTdxClientId();
   const clientSecret = getTdxClientSecret();
   const apiCache = getApiCache();
 
   if (!clientId || !clientSecret) {
-    return staticToken || "";
+    return "";
   }
 
   if (apiCache.tdxAccessToken && Date.now() < apiCache.tdxAccessToken.expiresAt) {
