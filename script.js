@@ -94,8 +94,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-CA", {
 
 const rowsElement = document.querySelector("#flightRows");
 const updatedAtElement = document.querySelector("#updatedAt");
-const countElement = document.querySelector("#flightCount");
-const nextArrivalElement = document.querySelector("#nextArrival");
 
 let flights = fallbackFlights;
 let dataSource = "備用資料";
@@ -627,10 +625,6 @@ function render() {
   const refreshMinutes = Math.max(0, Math.ceil((nextDataRefreshAt - now) / 60000));
 
   updatedAtElement.textContent = `${refreshMinutes} 分鐘`;
-  countElement.textContent = currentFlights.length;
-  nextArrivalElement.textContent = nextFlight
-    ? `${nextFlight.minutes} 分鐘`
-    : "今日完成";
 
   rowsElement.innerHTML = currentFlights
     .map((flight) => {
