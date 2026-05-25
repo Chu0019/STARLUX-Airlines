@@ -1,8 +1,8 @@
 const TDX_FIDS_TPE_URL = "/api/tdx/fids/tpe";
 const FR24_LIVE_URL = "/api/fr24/starlux-live";
 const FR24_SUMMARY_URL = "/api/fr24/flight-summary";
-const CACHE_KEY = "starlux-tdx-fids-tpe-v7-next-day";
-const FR24_CACHE_KEY = "starlux-fr24-live-v1";
+const CACHE_KEY = "starlux-tdx-fids-tpe-v9-cross-day-arrivals";
+const FR24_CACHE_KEY = "starlux-fr24-live-v2-cross-day-arrivals";
 const FR24_SUMMARY_CACHE_KEY = "starlux-fr24-summary-v1";
 const CACHE_MAX_AGE = 15 * 60 * 1000;
 const FR24_CACHE_MAX_AGE = 30 * 60 * 1000;
@@ -118,6 +118,14 @@ function formatFlightNo(airlineCode, flightNo) {
   }
 
   return `${airlineCode}${raw}`.toUpperCase().replace(/^JX0+/, "JX");
+}
+
+function normalizeTrackingFlightCode(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/^SJX0*/, "JX")
+    .replace(/^JX0+/, "JX");
 }
 
 function getLocalizedText(value) {
@@ -322,7 +330,19 @@ function getTomorrowDate(now) {
 }
 
 function getFr24FlightMap() {
-  return new Map(fr24Flights.map((flight) => [flight.flight, flight]));
+  const flightMap = new Map();
+
+  for (const flight of fr24Flights) {
+    for (const code of [flight.flight, flight.callsign]) {
+      const normalizedCode = normalizeTrackingFlightCode(code);
+
+      if (normalizedCode) {
+        flightMap.set(normalizedCode, flight);
+      }
+    }
+  }
+
+  return flightMap;
 }
 
 function chunkItems(items, size) {
@@ -408,7 +428,7 @@ function filterCurrentFlights(mappedFlights, now, trackingMap) {
   const today = dateFormatter.format(now);
   const tomorrow = getTomorrowDate(now);
 
-  return mappedFlights
+  const currentFlights = mappedFlights
     .filter((flight) => [today, tomorrow].includes(flight.targetDate))
     .map((flight) => {
       const trackedFlight = trackingMap.get(flight.flight);
@@ -416,15 +436,20 @@ function filterCurrentFlights(mappedFlights, now, trackingMap) {
       const hasFr24Eta = flight.type === "抵達"
         && fr24Eta
         && !Number.isNaN(fr24Eta.getTime());
+      const fr24TargetDate = hasFr24Eta ? dateFormatter.format(fr24Eta) : "";
       const targetDateTime = hasFr24Eta
         ? fr24Eta
         : getTaipeiDate(flight.targetDate, flight.targetTime);
       const rawMinutes = Math.ceil((targetDateTime - now) / 60000);
       const minutes = rawMinutes;
-      const deltaStatus = getScheduleDeltaStatus(flight, targetDateTime);
+      const comparisonFlight = hasFr24Eta
+        ? { ...flight, targetDate: fr24TargetDate }
+        : flight;
+      const deltaStatus = getScheduleDeltaStatus(comparisonFlight, targetDateTime);
       const status = deltaStatus || flight.status || mapFlightStatus(flight.rawStatus || "", flight.type, minutes);
       return {
         ...flight,
+        targetDate: hasFr24Eta ? fr24TargetDate : flight.targetDate,
         targetDateTime,
         minutes,
         status,
@@ -433,8 +458,27 @@ function filterCurrentFlights(mappedFlights, now, trackingMap) {
       };
     })
     .filter((flight) => !Number.isNaN(flight.targetDateTime.getTime()))
-    .filter((flight) => flight.minutes > 0)
-    .sort((a, b) => a.targetDateTime - b.targetDateTime);
+    .filter((flight) => flight.minutes > 0);
+
+  const uniqueFlights = new Map();
+
+  for (const flight of currentFlights) {
+    const key = `${flight.type}-${flight.flight}-${flight.targetDate}`;
+    const existingFlight = uniqueFlights.get(key);
+
+    if (!existingFlight || (existingFlight.nextDayPreview && !flight.nextDayPreview)) {
+      uniqueFlights.set(key, flight);
+    }
+  }
+
+  return [...uniqueFlights.values()]
+    .sort((a, b) => {
+      if (a.targetDate !== b.targetDate) {
+        return a.targetDate.localeCompare(b.targetDate);
+      }
+
+      return a.targetDateTime - b.targetDateTime;
+    });
 }
 
 async function fetchTdxFlights() {
@@ -488,14 +532,26 @@ function buildNextDayPreviewFlights(sourceFlights) {
 
   return sourceFlights
     .filter((flight) => {
-      if (flight.type !== "起飛") return false;
       if (!flight.scheduledTime) return false;
 
       const scheduledHour = Number(flight.scheduledTime.split(":")[0]);
-      const isEarlyMorningDeparture = scheduledHour >= 0 && scheduledHour < 3;
-      const isCompleted = /出發|depart/i.test(flight.rawStatus || "");
+      const rawStatus = flight.rawStatus || "";
 
-      return isEarlyMorningDeparture && isCompleted;
+      if (flight.type === "起飛") {
+        const isEarlyMorningDeparture = scheduledHour >= 0 && scheduledHour < 3;
+        const isCompletedDeparture = /出發|depart/i.test(rawStatus);
+
+        return isEarlyMorningDeparture && isCompletedDeparture;
+      }
+
+      if (flight.type === "抵達") {
+        const isEarlyMorningArrival = scheduledHour >= 3 && scheduledHour < 8;
+        const isCompletedArrival = /抵達|arriv/i.test(rawStatus);
+
+        return isEarlyMorningArrival && isCompletedArrival;
+      }
+
+      return false;
     })
     .map((flight) => ({
       ...flight,
