@@ -1,7 +1,7 @@
 const TDX_FIDS_TPE_URL = "/api/tdx/fids/tpe";
 const FR24_LIVE_URL = "/api/fr24/starlux-live";
 const FR24_SUMMARY_URL = "/api/fr24/flight-summary";
-const CACHE_KEY = "starlux-tdx-fids-tpe-v6";
+const CACHE_KEY = "starlux-tdx-fids-tpe-v7-next-day";
 const FR24_CACHE_KEY = "starlux-fr24-live-v1";
 const FR24_SUMMARY_CACHE_KEY = "starlux-fr24-summary-v1";
 const CACHE_MAX_AGE = 15 * 60 * 1000;
@@ -312,6 +312,18 @@ function getTaipeiDate(date, time) {
   return new Date(`${date}T${time}:00+08:00`);
 }
 
+function addDays(dateText, days) {
+  const date = getTaipeiDate(dateText, "00:00");
+  date.setDate(date.getDate() + days);
+  return dateFormatter.format(date);
+}
+
+function getTomorrowDate(now) {
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return dateFormatter.format(tomorrow);
+}
+
 function getFr24FlightMap() {
   return new Map(fr24Flights.map((flight) => [flight.flight, flight]));
 }
@@ -426,9 +438,10 @@ function getStatusClass(status) {
 
 function filterCurrentFlights(mappedFlights, now, trackingMap) {
   const today = dateFormatter.format(now);
+  const tomorrow = getTomorrowDate(now);
 
   return mappedFlights
-    .filter((flight) => flight.targetDate === today || flight.fromFr24Only)
+    .filter((flight) => [today, tomorrow].includes(flight.targetDate) || flight.fromFr24Only)
     .map((flight) => {
       const trackedFlight = trackingMap.get(flight.flight);
       const fr24Eta = trackedFlight?.eta ? new Date(trackedFlight.eta) : null;
@@ -482,14 +495,16 @@ async function fetchTdxFlights() {
 
     const filteredFlights = tdxFlights
       .filter((flight) => flight.flight.startsWith("JX") && flight.targetDate && flight.targetTime);
+    const nextDayPreviewFlights = buildNextDayPreviewFlights(filteredFlights);
+    const displayFlights = [...filteredFlights, ...nextDayPreviewFlights];
 
-    if (filteredFlights.length === 0) {
+    if (displayFlights.length === 0) {
       throw new Error("TDX returned no StarLux flights");
     }
 
-    writeTdxCache(filteredFlights);
+    writeTdxCache(displayFlights);
     dataSource = "TDX 即時航班";
-    return filteredFlights;
+    return displayFlights;
   } catch (error) {
     const cached = readTdxCache();
 
@@ -500,6 +515,33 @@ async function fetchTdxFlights() {
 
     throw error;
   }
+}
+
+function buildNextDayPreviewFlights(sourceFlights) {
+  const existingFlights = new Set(sourceFlights.map((flight) => `${flight.targetDate}-${flight.flight}`));
+
+  return sourceFlights
+    .filter((flight) => {
+      if (flight.type !== "起飛") return false;
+      if (!flight.scheduledTime) return false;
+
+      const scheduledHour = Number(flight.scheduledTime.split(":")[0]);
+      const isEarlyMorningDeparture = scheduledHour >= 0 && scheduledHour < 3;
+      const isCompleted = /出發|depart/i.test(flight.rawStatus || "");
+
+      return isEarlyMorningDeparture && isCompleted;
+    })
+    .map((flight) => ({
+      ...flight,
+      targetDate: addDays(flight.targetDate, 1),
+      estimatedTime: flight.scheduledTime,
+      targetTime: flight.scheduledTime,
+      rawStatus: "隔日預告",
+      status: "準時",
+      sourceUpdatedAt: new Date().toISOString(),
+      nextDayPreview: true,
+    }))
+    .filter((flight) => !existingFlights.has(`${flight.targetDate}-${flight.flight}`));
 }
 
 async function fetchFr24Flights() {
