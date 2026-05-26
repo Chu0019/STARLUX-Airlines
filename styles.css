@@ -135,7 +135,7 @@ h1 {
 
 .summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -144,9 +144,10 @@ h1 {
   padding: 10px 16px;
   border: 1px solid var(--line);
   background: rgba(18, 18, 18, 0.78);
-  display: flex;
+  display: grid;
   align-items: baseline;
   justify-content: center;
+  justify-items: center;
   gap: 10px;
 }
 
@@ -159,6 +160,29 @@ h1 {
   color: var(--gold-bright);
   font-size: clamp(1.5rem, 2.6vw, 2.8rem);
   font-variant-numeric: tabular-nums;
+}
+
+.summary small {
+  color: var(--muted);
+  font-size: clamp(0.78rem, 1vw, 0.95rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary button {
+  min-width: 132px;
+  min-height: 42px;
+  border: 1px solid var(--gold-bright);
+  color: var(--gold-bright);
+  background: rgba(18, 18, 18, 0.8);
+  font: inherit;
+  font-size: clamp(1rem, 1.4vw, 1.25rem);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.summary button:disabled {
+  cursor: wait;
+  opacity: 0.62;
 }
 
 .flight-panel {
@@ -378,27 +402,54 @@ h1 {
   .flight-panel {
     border: 1px solid var(--line);
     background: var(--panel);
-    overflow-x: auto;
+    overflow-x: hidden;
     overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
   }
 
   .table-head,
   .flight-row {
     display: grid;
-    grid-template-columns: 0.8fr 0.8fr 0.66fr 1fr 0.58fr 0.74fr 0.74fr 0.82fr 0.74fr;
-    min-width: 860px;
-    padding-inline: 10px;
+    grid-template-columns: 0.72fr 0.72fr 0.66fr 1.05fr 0.56fr 0.66fr 0.72fr 0.72fr 0.72fr;
+    min-width: 0;
+    width: 100%;
+    padding-inline: 5px;
   }
 
   .table-head {
     min-height: 42px;
-    font-size: 0.8rem;
+    font-size: 0.66rem;
+  }
+
+  .table-head span,
+  .flight-row span {
+    padding-right: 3px;
+    line-height: 1.16;
+    overflow-wrap: anywhere;
   }
 
   .flight-row {
-    min-height: 52px;
-    font-size: 0.95rem;
+    min-height: 50px;
+    font-size: clamp(0.66rem, 2.25vw, 0.86rem);
+  }
+
+  .city {
+    font-size: 0.92em;
+  }
+
+  .status {
+    padding: 3px 4px;
+    font-size: 0.66em;
+  }
+
+  .status small,
+  .time-source {
+    display: block;
+    margin-left: 0;
+    margin-top: 2px;
+  }
+
+  .minutes {
+    font-size: 0.92em;
   }
 }
 
@@ -410,7 +461,22 @@ h1 {
 
   .table-head,
   .flight-row {
-    min-width: 820px;
+    grid-template-columns: 0.72fr 0.72fr 0.62fr 1fr 0.54fr 0.64fr 0.7fr 0.7fr 0.68fr;
+    padding-inline: 4px;
+  }
+
+  .table-head {
+    font-size: 0.58rem;
+  }
+
+  .flight-row {
+    min-height: 48px;
+    font-size: clamp(0.58rem, 2.2vw, 0.74rem);
+  }
+
+  .table-head span,
+  .flight-row span {
+    padding-right: 2px;
   }
 
   .summary span {

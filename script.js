@@ -7,6 +7,7 @@ const FR24_SUMMARY_CACHE_KEY = "starlux-fr24-summary-v1";
 const CACHE_MAX_AGE = 15 * 60 * 1000;
 const FR24_CACHE_MAX_AGE = 30 * 60 * 1000;
 const FR24_SUMMARY_CACHE_MAX_AGE = 15 * 60 * 1000;
+const FORCE_REFRESH_COOLDOWN = 5 * 60 * 1000;
 
 const fallbackFlights = [
   {
@@ -52,6 +53,7 @@ const airportCityNames = {
   BKK: "曼谷",
   CEB: "宿霧",
   CGK: "雅加達",
+  CNX: "清邁",
   CRK: "克拉克",
   CTS: "札幌",
   DAD: "峴港",
@@ -71,12 +73,15 @@ const airportCityNames = {
   ONT: "安大略",
   PHX: "鳳凰城",
   PQC: "富國島",
+  RMQ: "台中",
   SDJ: "仙台",
   SEA: "西雅圖",
   SFO: "舊金山",
   SGN: "胡志明市",
+  SHI: "宮古(下地島)",
   SIN: "新加坡",
   TPE: "台北桃園",
+  UKB: "神戶",
 };
 
 const formatter = new Intl.DateTimeFormat("zh-TW", {
@@ -94,11 +99,37 @@ const dateFormatter = new Intl.DateTimeFormat("en-CA", {
 
 const rowsElement = document.querySelector("#flightRows");
 const updatedAtElement = document.querySelector("#updatedAt");
+const fr24UpdatedAtElement = document.querySelector("#fr24UpdatedAt");
+const tdxLastUpdatedAtElement = document.querySelector("#tdxLastUpdatedAt");
+const fr24LastUpdatedAtElement = document.querySelector("#fr24LastUpdatedAt");
+const forceRefreshButton = document.querySelector("#forceRefreshButton");
+const forceRefreshStatusElement = document.querySelector("#forceRefreshStatus");
 
 let flights = fallbackFlights;
 let dataSource = "備用資料";
 let fr24Flights = [];
-let nextDataRefreshAt = new Date(Date.now() + CACHE_MAX_AGE);
+let nextDataRefreshAt = getNextMinuteBoundary(15);
+let nextFr24RefreshAt = getNextMinuteBoundary(30);
+let lastTdxRefreshAt = null;
+let lastFr24RefreshAt = null;
+let forceRefreshCooldownUntil = null;
+let isTdxRefreshing = false;
+let isFr24Refreshing = false;
+
+function getNextMinuteBoundary(intervalMinutes, from = new Date()) {
+  const next = new Date(from);
+  next.setSeconds(0, 0);
+
+  const nextMinute = Math.ceil((next.getMinutes() + 0.001) / intervalMinutes) * intervalMinutes;
+
+  if (nextMinute >= 60) {
+    next.setHours(next.getHours() + 1, 0, 0, 0);
+  } else {
+    next.setMinutes(nextMinute, 0, 0);
+  }
+
+  return next;
+}
 
 function normalizeDate(value) {
   const match = value.match(/\d{4}[-/]\d{2}[-/]\d{2}/);
@@ -481,9 +512,9 @@ function filterCurrentFlights(mappedFlights, now, trackingMap) {
     });
 }
 
-async function fetchTdxFlights() {
+async function fetchTdxFlights(force = false) {
   try {
-    const response = await fetch(TDX_FIDS_TPE_URL, { cache: "no-store" });
+    const response = await fetch(`${TDX_FIDS_TPE_URL}${force ? "?force=1" : ""}`, { cache: "no-store" });
 
     if (!response.ok) {
       throw new Error("Unable to load TDX FIDS flights");
@@ -565,9 +596,9 @@ function buildNextDayPreviewFlights(sourceFlights) {
     .filter((flight) => !existingFlights.has(`${flight.targetDate}-${flight.flight}`));
 }
 
-async function fetchFr24Flights() {
+async function fetchFr24Flights(force = false) {
   try {
-    const response = await fetch(FR24_LIVE_URL, { cache: "no-store" });
+    const response = await fetch(`${FR24_LIVE_URL}${force ? "?force=1" : ""}`, { cache: "no-store" });
 
     if (!response.ok) {
       throw new Error("Unable to load FR24 live flights");
@@ -581,6 +612,8 @@ async function fetchFr24Flights() {
     if (payload.available && nextFr24Flights.length > 0) {
       fr24Flights = nextFr24Flights;
       writeFr24Cache(fr24Flights);
+      lastFr24RefreshAt = new Date(payload.sourceUpdatedAt || Date.now());
+      nextFr24RefreshAt = getNextMinuteBoundary(30);
     }
   } catch {
     if (fr24Flights.length > 0) {
@@ -591,27 +624,88 @@ async function fetchFr24Flights() {
 
     if (cached) {
       fr24Flights = cached;
+      lastFr24RefreshAt = new Date();
     }
   }
 }
 
-async function loadFlights() {
-  await fetchFr24Flights();
+async function loadTdxFlights(force = false) {
+  if (isTdxRefreshing) {
+    return;
+  }
+
+  isTdxRefreshing = true;
 
   try {
-    flights = await fetchTdxFlights();
+    flights = await fetchTdxFlights(force);
+    lastTdxRefreshAt = new Date();
   } catch {
     flights = fallbackFlights;
     dataSource = "備用資料";
+    lastTdxRefreshAt = new Date();
+  } finally {
+    isTdxRefreshing = false;
   }
 
-  nextDataRefreshAt = new Date(Date.now() + CACHE_MAX_AGE);
+  nextDataRefreshAt = getNextMinuteBoundary(15);
   render();
 }
 
+async function loadFlights(force = false) {
+  await fetchFr24Flights(force);
+  await loadTdxFlights(force);
+}
+
 async function refreshFr24Flights() {
-  await fetchFr24Flights();
-  render();
+  if (isFr24Refreshing) {
+    return;
+  }
+
+  isFr24Refreshing = true;
+  try {
+    await fetchFr24Flights();
+  } finally {
+    isFr24Refreshing = false;
+    render();
+  }
+}
+
+async function forceRefreshFlights() {
+  if (forceRefreshCooldownUntil && Date.now() < forceRefreshCooldownUntil.getTime()) {
+    render();
+    return;
+  }
+
+  forceRefreshButton.disabled = true;
+  forceRefreshButton.textContent = "更新中";
+  forceRefreshStatusElement.textContent = "正在重新抓資料";
+
+  try {
+    await loadFlights(true);
+    forceRefreshCooldownUntil = new Date(Date.now() + FORCE_REFRESH_COOLDOWN);
+    forceRefreshStatusElement.textContent = `更新完成 ${formatClock(new Date())}`;
+  } catch {
+    forceRefreshStatusElement.textContent = "更新失敗，保留目前資料";
+  } finally {
+    forceRefreshButton.disabled = false;
+    forceRefreshButton.textContent = "強制更新";
+  }
+}
+
+async function refreshFr24FlightsIfDue() {
+  if (Date.now() < nextFr24RefreshAt.getTime()) {
+    return;
+  }
+
+  await refreshFr24Flights();
+}
+
+async function refreshTdxFlightsIfDue() {
+  if (Date.now() < nextDataRefreshAt.getTime()) {
+    return;
+  }
+
+  await loadTdxFlights();
 }
 
 function render() {
@@ -624,8 +718,26 @@ function render() {
     : now;
 
   const refreshMinutes = Math.max(0, Math.ceil((nextDataRefreshAt - now) / 60000));
+  const fr24RefreshMinutes = Math.max(0, Math.ceil((nextFr24RefreshAt - now) / 60000));
+  const forceCooldownMinutes = forceRefreshCooldownUntil
+    ? Math.max(0, Math.ceil((forceRefreshCooldownUntil - now) / 60000))
+    : 0;
 
   updatedAtElement.textContent = `${refreshMinutes} 分鐘`;
+  fr24UpdatedAtElement.textContent = `${fr24RefreshMinutes} 分鐘`;
+  tdxLastUpdatedAtElement.textContent = `上次更新 ${lastTdxRefreshAt ? formatClock(lastTdxRefreshAt) : "--:--"}`;
+  fr24LastUpdatedAtElement.textContent = `上次更新 ${lastFr24RefreshAt ? formatClock(lastFr24RefreshAt) : "--:--"}`;
+
+  if (forceCooldownMinutes > 0) {
+    forceRefreshButton.disabled = true;
+    forceRefreshButton.textContent = `${forceCooldownMinutes} 分鐘`;
+    forceRefreshStatusElement.textContent = "強制更新冷卻中";
+  } else if (!forceRefreshButton.disabled) {
+    forceRefreshButton.textContent = "強制更新";
+    if (!forceRefreshStatusElement.textContent.startsWith("更新完成")) {
+      forceRefreshStatusElement.textContent = "重新抓 TDX / FR24";
+    }
+  }
 
   rowsElement.innerHTML = currentFlights
     .map((flight) => {
@@ -676,6 +788,7 @@ function render() {
 }
 
 loadFlights();
+forceRefreshButton.addEventListener("click", forceRefreshFlights);
 
 function scheduleMinuteRender() {
   const now = new Date();
@@ -688,5 +801,6 @@ function scheduleMinuteRender() {
 }
 
 scheduleMinuteRender();
-setInterval(loadFlights, CACHE_MAX_AGE);
-setInterval(refreshFr24Flights, FR24_CACHE_MAX_AGE);
+setInterval(render, 1000);
+setInterval(refreshTdxFlightsIfDue, 1000);
+setInterval(refreshFr24FlightsIfDue, 1000);

@@ -114,8 +114,8 @@ function normalizeFr24SummaryFlight(flight) {
   };
 }
 
-async function fetchFr24LiveStarlux() {
-  if (isFreshCache(apiCache.fr24Live, FR24_LIVE_CACHE_MAX_AGE)) {
+async function fetchFr24LiveStarlux(force = false) {
+  if (!force && isFreshCache(apiCache.fr24Live, FR24_LIVE_CACHE_MAX_AGE)) {
     return { ...apiCache.fr24Live.payload, cached: true };
   }
 
@@ -126,7 +126,7 @@ async function fetchFr24LiveStarlux() {
   const url = new URL("https://fr24api.flightradar24.com/api/live/flight-positions/full");
   url.searchParams.set("operating_as", "SJX");
   url.searchParams.set("airports", "outbound:RCTP,inbound:RCTP");
-  url.searchParams.set("limit", "100");
+  url.searchParams.set("limit", "10");
 
   const response = await fetch(url, { headers: getFr24Headers() });
 
@@ -226,9 +226,10 @@ async function fetchFr24FlightSummary(ids) {
   };
 }
 
-async function handleFr24Request(response) {
+async function handleFr24Request(request, response) {
   try {
-    sendJson(response, 200, await fetchFr24LiveStarlux());
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    sendJson(response, 200, await fetchFr24LiveStarlux(url.searchParams.get("force") === "1"));
   } catch (error) {
     if (apiCache.fr24Live) {
       sendJson(response, 200, {
@@ -260,9 +261,12 @@ async function handleFr24SummaryRequest(request, response) {
   }
 }
 
-async function handleTdxRequest(response) {
+async function handleTdxRequest(request, response) {
   try {
-    if (isFreshCache(apiCache.tdx, TDX_CACHE_MAX_AGE)) {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    const force = url.searchParams.get("force") === "1";
+
+    if (!force && isFreshCache(apiCache.tdx, TDX_CACHE_MAX_AGE)) {
       response.writeHead(apiCache.tdx.status, {
         "content-type": apiCache.tdx.contentType,
         "cache-control": "no-store",
@@ -280,13 +284,13 @@ async function handleTdxRequest(response) {
       headers.authorization = `Bearer ${tdxAccessToken}`;
     }
 
-    const url = new URL("https://tdx.transportdata.tw/api/basic/v2/Air/FIDS/Flight");
-    url.searchParams.set("IsCargo", "false");
-    url.searchParams.set("$filter", "AirlineID eq 'JX'");
-    url.searchParams.set("$top", "100");
-    url.searchParams.set("$format", "JSON");
+    const tdxUrl = new URL("https://tdx.transportdata.tw/api/basic/v2/Air/FIDS/Flight");
+    tdxUrl.searchParams.set("IsCargo", "false");
+    tdxUrl.searchParams.set("$filter", "AirlineID eq 'JX'");
+    tdxUrl.searchParams.set("$top", "100");
+    tdxUrl.searchParams.set("$format", "JSON");
 
-    const tdxResponse = await fetch(url, { headers });
+    const tdxResponse = await fetch(tdxUrl, { headers });
     const text = await tdxResponse.text();
     const contentType = tdxResponse.headers.get("content-type") || "application/json; charset=utf-8";
 
@@ -349,7 +353,7 @@ const server = http.createServer((request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
 
   if (url.pathname === "/api/fr24/starlux-live") {
-    handleFr24Request(response);
+    handleFr24Request(request, response);
     return;
   }
 
@@ -359,7 +363,7 @@ const server = http.createServer((request, response) => {
   }
 
   if (url.pathname === "/api/tdx/fids/tpe") {
-    handleTdxRequest(response);
+    handleTdxRequest(request, response);
     return;
   }
 

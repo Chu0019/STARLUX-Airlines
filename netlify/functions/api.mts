@@ -172,7 +172,7 @@ async function fetchFr24LiveStarlux() {
   const url = new URL("https://fr24api.flightradar24.com/api/live/flight-positions/full");
   url.searchParams.set("operating_as", "SJX");
   url.searchParams.set("airports", "outbound:RCTP,inbound:RCTP");
-  url.searchParams.set("limit", "100");
+  url.searchParams.set("limit", "10");
 
   const response = await fetch(url, { headers: getFr24Headers() });
 

@@ -4,14 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>星宇航空動態航班看板</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=mobile-fit-1" />
   </head>
   <body>
     <main class="board" aria-label="星宇航空動態航班看板">
       <section class="summary" aria-label="航班摘要">
         <div>
-          <span>下次更新</span>
+          <span>TDX更新</span>
           <strong id="updatedAt">--:--</strong>
+          <small id="tdxLastUpdatedAt">上次更新 --:--</small>
+        </div>
+        <div>
+          <span>FR24更新</span>
+          <strong id="fr24UpdatedAt">--:--</strong>
+          <small id="fr24LastUpdatedAt">上次更新 --:--</small>
+        </div>
+        <div class="summary-action">
+          <button id="forceRefreshButton" type="button">強制更新</button>
+          <small id="forceRefreshStatus">重新抓 TDX / FR24</small>
         </div>
       </section>
 
@@ -32,6 +42,6 @@
 
     </main>
 
-    <script src="script.js?v=fr24-cross-day-estimates-1"></script>
+    <script src="script.js?v=force-refresh-4"></script>
   </body>
 </html>
