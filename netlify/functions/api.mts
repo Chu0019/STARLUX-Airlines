@@ -158,10 +158,10 @@ function normalizeFr24SummaryFlight(flight: Record<string, any>) {
   };
 }
 
-async function fetchFr24LiveStarlux() {
+async function fetchFr24LiveStarlux(force = false) {
   const apiCache = getApiCache();
 
-  if (isFreshCache(apiCache.fr24Live, FR24_LIVE_CACHE_MAX_AGE)) {
+  if (!force && isFreshCache(apiCache.fr24Live, FR24_LIVE_CACHE_MAX_AGE)) {
     return { ...apiCache.fr24Live.payload, cached: true };
   }
 
@@ -273,11 +273,12 @@ async function fetchFr24FlightSummary(ids: string) {
   };
 }
 
-async function handleFr24LiveRequest() {
+async function handleFr24LiveRequest(request: Request) {
   const apiCache = getApiCache();
 
   try {
-    return jsonResponse(200, await fetchFr24LiveStarlux());
+    const url = new URL(request.url);
+    return jsonResponse(200, await fetchFr24LiveStarlux(url.searchParams.get("force") === "1"));
   } catch (error) {
     if (apiCache.fr24Live) {
       return jsonResponse(200, {
@@ -308,17 +309,21 @@ async function handleFr24SummaryRequest(request: Request) {
   }
 }
 
-async function handleTdxRequest() {
+async function handleTdxRequest(request: Request) {
   const apiCache = getApiCache();
 
   try {
-    if (isFreshCache(apiCache.tdx, TDX_CACHE_MAX_AGE)) {
+    const requestUrl = new URL(request.url);
+    const force = requestUrl.searchParams.get("force") === "1";
+
+    if (!force && isFreshCache(apiCache.tdx, TDX_CACHE_MAX_AGE)) {
       return new Response(apiCache.tdx.body, {
         status: apiCache.tdx.status,
         headers: {
           "content-type": apiCache.tdx.contentType,
           "cache-control": "no-store",
           "x-starlux-cache": "hit",
+          "x-starlux-updated-at": new Date(apiCache.tdx.savedAt).toISOString(),
         },
       });
     }
@@ -339,10 +344,11 @@ async function handleTdxRequest() {
     const tdxResponse = await fetch(url, { headers });
     const text = await tdxResponse.text();
     const contentType = tdxResponse.headers.get("content-type") || "application/json; charset=utf-8";
+    const updatedAt = Date.now();
 
     if (tdxResponse.ok) {
       apiCache.tdx = {
-        savedAt: Date.now(),
+        savedAt: updatedAt,
         status: tdxResponse.status,
         contentType,
         body: text,
@@ -355,6 +361,7 @@ async function handleTdxRequest() {
         "content-type": contentType,
         "cache-control": "no-store",
         "x-starlux-cache": "miss",
+        "x-starlux-updated-at": new Date(updatedAt).toISOString(),
       },
     });
   } catch (error) {
@@ -365,6 +372,7 @@ async function handleTdxRequest() {
           "content-type": apiCache.tdx.contentType,
           "cache-control": "no-store",
           "x-starlux-cache": "stale",
+          "x-starlux-updated-at": new Date(apiCache.tdx.savedAt).toISOString(),
         },
       });
     }
@@ -379,7 +387,7 @@ export default async (request: Request) => {
   const url = new URL(request.url);
 
   if (url.pathname === "/api/fr24/starlux-live") {
-    return handleFr24LiveRequest();
+    return handleFr24LiveRequest(request);
   }
 
   if (url.pathname === "/api/fr24/flight-summary") {
@@ -387,7 +395,7 @@ export default async (request: Request) => {
   }
 
   if (url.pathname === "/api/tdx/fids/tpe") {
-    return handleTdxRequest();
+    return handleTdxRequest(request);
   }
 
   return jsonResponse(404, { error: "API route not found" });

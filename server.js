@@ -271,6 +271,7 @@ async function handleTdxRequest(request, response) {
         "content-type": apiCache.tdx.contentType,
         "cache-control": "no-store",
         "x-starlux-cache": "hit",
+        "x-starlux-updated-at": new Date(apiCache.tdx.savedAt).toISOString(),
       });
       response.end(apiCache.tdx.body);
       return;
@@ -293,10 +294,11 @@ async function handleTdxRequest(request, response) {
     const tdxResponse = await fetch(tdxUrl, { headers });
     const text = await tdxResponse.text();
     const contentType = tdxResponse.headers.get("content-type") || "application/json; charset=utf-8";
+    const updatedAt = Date.now();
 
     if (tdxResponse.ok) {
       apiCache.tdx = {
-        savedAt: Date.now(),
+        savedAt: updatedAt,
         status: tdxResponse.status,
         contentType,
         body: text,
@@ -307,6 +309,7 @@ async function handleTdxRequest(request, response) {
       "content-type": contentType,
       "cache-control": "no-store",
       "x-starlux-cache": "miss",
+      "x-starlux-updated-at": new Date(updatedAt).toISOString(),
     });
     response.end(text);
   } catch (error) {
@@ -315,6 +318,7 @@ async function handleTdxRequest(request, response) {
         "content-type": apiCache.tdx.contentType,
         "cache-control": "no-store",
         "x-starlux-cache": "stale",
+        "x-starlux-updated-at": new Date(apiCache.tdx.savedAt).toISOString(),
       });
       response.end(apiCache.tdx.body);
       return;

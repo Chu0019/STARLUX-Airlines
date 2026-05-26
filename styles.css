@@ -382,21 +382,33 @@ h1 {
   }
 
   .summary {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
   }
 
   .summary > div {
-    min-height: 50px;
-    padding: 8px 12px;
+    min-height: 58px;
+    padding: 6px 4px;
+    gap: 3px;
   }
 
   .summary span {
-    font-size: 0.9rem;
+    font-size: 0.64rem;
   }
 
   .summary strong {
-    font-size: 1.45rem;
+    font-size: 1rem;
+  }
+
+  .summary small {
+    font-size: 0.54rem;
+  }
+
+  .summary button {
+    min-width: 0;
+    width: 100%;
+    min-height: 30px;
+    font-size: 0.72rem;
   }
 
   .flight-panel {
@@ -409,27 +421,27 @@ h1 {
   .table-head,
   .flight-row {
     display: grid;
-    grid-template-columns: 0.72fr 0.72fr 0.66fr 1.05fr 0.56fr 0.66fr 0.72fr 0.72fr 0.72fr;
+    grid-template-columns: 0.66fr 0.66fr 0.58fr 0.98fr 0.5fr 0.58fr 0.62fr 0.64fr 0.58fr;
     min-width: 0;
     width: 100%;
-    padding-inline: 5px;
+    padding-inline: 3px;
   }
 
   .table-head {
-    min-height: 42px;
-    font-size: 0.66rem;
+    min-height: 36px;
+    font-size: 0.56rem;
   }
 
   .table-head span,
   .flight-row span {
-    padding-right: 3px;
+    padding-right: 2px;
     line-height: 1.16;
     overflow-wrap: anywhere;
   }
 
   .flight-row {
-    min-height: 50px;
-    font-size: clamp(0.66rem, 2.25vw, 0.86rem);
+    min-height: 43px;
+    font-size: clamp(0.54rem, 1.95vw, 0.72rem);
   }
 
   .city {
@@ -437,19 +449,17 @@ h1 {
   }
 
   .status {
-    padding: 3px 4px;
-    font-size: 0.66em;
+    padding: 2px 3px;
+    font-size: 0.58em;
   }
 
   .status small,
   .time-source {
-    display: block;
-    margin-left: 0;
-    margin-top: 2px;
+    display: none;
   }
 
   .minutes {
-    font-size: 0.92em;
+    font-size: 0.86em;
   }
 }
 
@@ -461,17 +471,17 @@ h1 {
 
   .table-head,
   .flight-row {
-    grid-template-columns: 0.72fr 0.72fr 0.62fr 1fr 0.54fr 0.64fr 0.7fr 0.7fr 0.68fr;
-    padding-inline: 4px;
+    grid-template-columns: 0.66fr 0.66fr 0.56fr 0.95fr 0.48fr 0.56fr 0.6fr 0.62fr 0.56fr;
+    padding-inline: 2px;
   }
 
   .table-head {
-    font-size: 0.58rem;
+    font-size: 0.5rem;
   }
 
   .flight-row {
-    min-height: 48px;
-    font-size: clamp(0.58rem, 2.2vw, 0.74rem);
+    min-height: 40px;
+    font-size: clamp(0.5rem, 1.9vw, 0.66rem);
   }
 
   .table-head span,
@@ -480,10 +490,19 @@ h1 {
   }
 
   .summary span {
-    font-size: 0.82rem;
+    font-size: 0.58rem;
   }
 
   .summary strong {
-    font-size: 1.28rem;
+    font-size: 0.9rem;
+  }
+
+  .summary small {
+    font-size: 0.5rem;
+  }
+
+  .summary button {
+    min-height: 28px;
+    font-size: 0.64rem;
   }
 }

@@ -482,6 +482,7 @@ function filterCurrentFlights(mappedFlights, now, trackingMap) {
         ...flight,
         targetDate: hasFr24Eta ? fr24TargetDate : flight.targetDate,
         targetDateTime,
+        scheduledDateTime: getTaipeiDate(hasFr24Eta ? fr24TargetDate : flight.targetDate, flight.scheduledTime || flight.targetTime),
         minutes,
         status,
         displayEstimatedTime: hasFr24Eta ? formatClock(fr24Eta) : flight.estimatedTime || flight.targetTime,
@@ -508,7 +509,7 @@ function filterCurrentFlights(mappedFlights, now, trackingMap) {
         return a.targetDate.localeCompare(b.targetDate);
       }
 
-      return a.targetDateTime - b.targetDateTime;
+      return a.scheduledDateTime - b.scheduledDateTime;
     });
 }
 
@@ -520,6 +521,7 @@ async function fetchTdxFlights(force = false) {
       throw new Error("Unable to load TDX FIDS flights");
     }
 
+    const responseUpdatedAt = response.headers.get("x-starlux-updated-at");
     const payload = await response.json();
     const airportFids = Array.isArray(payload) ? payload[0] : payload;
     const tdxFlights = (Array.isArray(payload) && payload.some((flight) => flight.AirlineID))
@@ -544,6 +546,7 @@ async function fetchTdxFlights(force = false) {
     }
 
     writeTdxCache(displayFlights);
+    lastTdxRefreshAt = responseUpdatedAt ? new Date(responseUpdatedAt) : new Date();
     dataSource = "TDX 即時航班";
     return displayFlights;
   } catch (error) {
@@ -638,11 +641,12 @@ async function loadTdxFlights(force = false) {
 
   try {
     flights = await fetchTdxFlights(force);
-    lastTdxRefreshAt = new Date();
   } catch {
     flights = fallbackFlights;
     dataSource = "備用資料";
-    lastTdxRefreshAt = new Date();
+    if (!lastTdxRefreshAt) {
+      lastTdxRefreshAt = new Date();
+    }
   } finally {
     isTdxRefreshing = false;
   }
